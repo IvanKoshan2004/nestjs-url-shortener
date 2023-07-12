@@ -1,28 +1,18 @@
-import { Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @Controller('user')
 export class UserController {
     constructor(private readonly userService: UserService) {}
-    @Get('/login')
-    getUserLoginPage() {
-        return this.userService.getUserLoginPage();
-    }
-
-    @Get('/register')
-    getUserRegistrationPage() {
-        return this.userService.getUserRegistrationPage();
-    }
-    @Post('/login')
-    loginUser(@Req() req: Request) {
-        return this.userService.loginUser(req);
-    }
-    @Post('/register')
-    registerUser(@Req() req: Request) {
-        return this.userService.registerUser(req);
-    }
     @Get('/:username')
     getUserProfile(@Param('username') username: string) {
         return this.userService.getUserProfile(username);
+    }
+
+    @UseGuards(AuthGuard)
+    @Get('')
+    getOwnUserProfile() {
+        return this.userService.getOwnUserProfile();
     }
 }
