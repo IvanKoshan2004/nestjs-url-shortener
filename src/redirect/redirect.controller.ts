@@ -1,11 +1,12 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { All, Controller, Param, Req, Res } from '@nestjs/common';
 import { RedirectService } from './redirect.service';
+import { Request, Response } from 'express';
 
-@Controller()
+@Controller('r')
 export class RedirectController {
     constructor(private readonly redirectService: RedirectService) {}
-    @Get(':shorturl')
-    redirectFrom(@Param('shorturl') shorturl: string): string {
-        return this.redirectService.redirectFrom(shorturl);
+    @All('/:accessRoute')
+    redirectFrom(@Param('accessRoute') accessRoute: string, @Req() req: Request, @Res() res: Response) {
+        return this.redirectService.redirectFrom(accessRoute, req, res);
     }
 }

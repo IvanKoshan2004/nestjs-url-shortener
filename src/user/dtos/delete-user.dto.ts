@@ -1,6 +1,6 @@
 import { IsNotEmpty } from 'class-validator';
 
-export class ShortenUrlDto {
+export class DeleteUserDto {
     @IsNotEmpty()
-    url: string;
+    username: string;
 }

@@ -1,6 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Binary } from 'mongodb';
 import * as mongoose from 'mongoose';
-import { UserLogin } from './userlogin.schema';
+
+export class UserLogin {
+    hash_method: string;
+    salt: Buffer;
+    hash: Buffer;
+}
 
 export type UserDocument = mongoose.HydratedDocument<User>;
 
@@ -16,8 +22,10 @@ export class User {
     creation_time: Date;
     @Prop()
     last_login_time: Date;
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'UserLogin' })
+    @Prop({ type: UserLogin })
     login_data: UserLogin;
+    @Prop({ default: '' })
+    session_id: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

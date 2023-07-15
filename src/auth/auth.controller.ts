@@ -1,27 +1,24 @@
-import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterUserDto } from 'src/user/dtos/register-user.dto';
-import { LoginUserDto } from 'src/user/dtos/login-user.dto';
-import { Response } from 'express';
+import { CreateUserDto } from 'src/user/dtos/create-user.dto';
+import { LoginUserDto } from 'src/auth/dtos/login-user.dto';
+import { Request, Response } from 'express';
+import { AuthGuard } from './auth.guard';
 
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
-    @Get('/login')
-    getUserLoginPage() {
-        return this.authService.getUserLoginPage();
-    }
-    @Get('/register')
-    getUserRegistrationPage() {
-        return this.authService.getUserRegistrationPage();
-    }
-
     @Post('/login')
     loginUser(@Body() loginUserDto: LoginUserDto, @Res() res: Response) {
         return this.authService.loginUser(loginUserDto, res);
     }
+    @UseGuards(AuthGuard)
+    @Post('/logout')
+    logoutUser(@Req() req: Request, @Res() res: Response) {
+        return this.authService.logoutUser(req, res);
+    }
     @Post('/register')
-    registerUser(@Body() registerUserDto: RegisterUserDto) {
+    registerUser(@Body() registerUserDto: CreateUserDto) {
         return this.authService.registerUser(registerUserDto);
     }
 }

@@ -1,88 +1,78 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
 import { pbkdf2, randomBytes } from 'crypto';
-import { Model, Document } from 'mongoose';
-import { LoginUserDto } from 'src/user/dtos/login-user.dto';
-import { RegisterUserDto } from 'src/user/dtos/register-user.dto';
-import { User } from 'src/user/entities/user.schema';
-import { UserLogin } from 'src/user/entities/userlogin.schema';
+import { LoginUserDto } from 'src/auth/dtos/login-user.dto';
+import { CreateUserDto } from 'src/user/dtos/create-user.dto';
+import { UserLogin, UserDocument } from 'src/user/entities/user.schema';
 import { Response } from 'express';
 import { constants } from './auth.constants';
+import { UserService } from 'src/user/user.service';
+import { JwtSessionPayload } from './types/jwt-session-payload';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthService {
     private defaultHashMethod = 'sha256';
-    constructor(
-        @InjectModel('users')
-        private userModel: Model<User>,
-        @InjectModel('userlogins')
-        private userLoginModel: Model<UserLogin>,
-        private readonly jwtService: JwtService,
-    ) {}
+    constructor(private readonly jwtService: JwtService, private readonly userService: UserService) {}
     async loginUser(loginUserDto: LoginUserDto, res: Response) {
         try {
-            const user = await this.userModel
-                .findOne({
-                    username: loginUserDto.username,
-                })
-                .exec();
+            const user = await this.userService.getUserByUsername(loginUserDto.username);
+            console.log('Logging into user ', user.username);
+            console.log(user);
             if (!user) {
-                return { msg: "can't login" };
-            }
-            const userLogin = await this.userLoginModel.findById(user.login_data).exec();
-            const isAuthenticated = await this.verifyUserLogin(loginUserDto, userLogin);
-            if (isAuthenticated) {
-                const jwtToken = await this.generateUserSessionJwt(user);
-                res.cookie('session', jwtToken, {
-                    httpOnly: true,
-                    maxAge: 172800,
-                });
-                res.json({ msg: 'sucessful login', jwt: jwtToken });
-            } else {
                 res.json({ msg: "can't login" });
+                return;
             }
+            const isAuthenticated = await this.verifyUserLogin(loginUserDto, user.login_data);
+            console.log('Is authenticated: ', isAuthenticated);
+            if (!isAuthenticated) {
+                res.json({ msg: "can't login" });
+                return;
+            }
+            user.session_id = this.generateSessionId();
+            user.markModified('session_id');
+            const jwtToken = await this.generateUserSessionJwt(user);
+            res.cookie('session', jwtToken, {
+                httpOnly: true,
+                maxAge: 172800,
+            });
+            res.json({ msg: 'sucessful login', jwt: jwtToken });
+            user.save();
+            return;
         } catch (e) {
-            console.log(e);
             res.json({ msg: "can't login" });
+            return;
         }
     }
-    async registerUser(registerUserDto: RegisterUserDto) {
+    async logoutUser(req: Request, res: Response) {
         try {
-            const usernameExists = await this.userModel
-                .findOne({
-                    username: registerUserDto.username,
-                })
-                .exec();
-            const emailExists = await this.userModel
-                .findOne({
-                    email: registerUserDto.email,
-                })
-                .exec();
-            if (usernameExists) {
-                return { msg: 'user with this username exists' };
+            const user = await this.userService.getUserById(req.user._id);
+            console.log(user);
+            if (!user) {
+                res.json({ msg: "can't logout" });
+                return;
             }
-            if (emailExists) {
-                return { msg: 'user with this email exists' };
-            }
+            user.session_id = '';
+            user.markModified('session_id');
+            res.cookie('session', '');
+            res.json({ msg: 'sucessful logout' });
+            user.save();
+            return;
         } catch (e) {
-            return { msg: 'an error has occured' };
+            res.json({ msg: "can't logout" });
+            return;
         }
-        const newUser = new this.userModel(registerUserDto);
-        const newUserLogin = await this.generateUserLoginDocument(registerUserDto);
+    }
+    async registerUser(createUserDto: CreateUserDto) {
+        const newUser = await this.userService.createUser(createUserDto);
+        if (!newUser) {
+            return { msg: `user with identical username or email exists` };
+        }
+        const newUserLogin = await this.generateUserLogin(createUserDto);
         newUser.login_data = newUserLogin;
         newUser.save();
-        newUserLogin.save();
         return { msg: `created new user with id ${newUser._id}` };
     }
-
-    getUserLoginPage() {
-        return '';
-    }
-    getUserRegistrationPage() {
-        return '';
-    }
-
     private async generatePasswordHash(
         password: string,
         salt: Buffer,
@@ -100,8 +90,8 @@ export class AuthService {
             });
         });
     }
-    private async generateUserLoginDocument(loginUserDto: LoginUserDto) {
-        const newUserLogin = new this.userLoginModel();
+    private async generateUserLogin(loginUserDto: LoginUserDto): Promise<UserLogin> {
+        const newUserLogin = new UserLogin();
         const salt = randomBytes(16);
         const hashDigest = await this.generatePasswordHash(loginUserDto.password, salt, this.defaultHashMethod);
         newUserLogin.hash_method = this.defaultHashMethod;
@@ -109,10 +99,14 @@ export class AuthService {
         newUserLogin.salt = salt;
         return newUserLogin;
     }
-    private async generateUserSessionJwt(user: Document<unknown, any, User>) {
-        const payload = {
-            username: user['username'],
-            userId: user._id,
+    private async generateUserSessionJwt(user: UserDocument) {
+        const currentTime = new Date().getTime();
+        const payload: JwtSessionPayload = {
+            session_id: user.session_id,
+            username: user.username,
+            _id: user._id.toString(),
+            iat: currentTime,
+            max_age: 172800,
         };
         const jwt = await this.jwtService.signAsync(payload, {
             secret: constants.jwtSecret,
@@ -121,25 +115,45 @@ export class AuthService {
     }
     private async verifyUserLogin(loginUserDto: LoginUserDto, userLogin: UserLogin) {
         try {
+            console.log(userLogin.hash);
             const hashDigest = await this.generatePasswordHash(
                 loginUserDto.password,
-                userLogin.salt,
+                userLogin.salt.buffer as Buffer,
                 userLogin.hash_method,
             );
-            return hashDigest.equals(userLogin.hash);
+
+            return hashDigest.equals(userLogin.hash.buffer as Buffer);
         } catch (e) {
+            console.log('error', e);
             return false;
         }
     }
     async verifyUserSessionJwt(jwt: string) {
-        const isVerified = await this.jwtService.verifyAsync(jwt, {
+        const isJwtVerified = await this.jwtService.verifyAsync(jwt, {
             secret: constants.jwtSecret,
         });
-        console.log('Jwt verification status ', isVerified);
-        return isVerified;
+        if (!isJwtVerified) {
+            return false;
+        }
+        const payload = this.decodeUserSessionJwt(jwt);
+        const user = await this.userService.getUserById(payload._id);
+        if (!user) {
+            return false;
+        }
+        if (user.session_id != payload.session_id) {
+            return false;
+        }
+        return true;
     }
-    decodeUserSessionJwt(jwt: string) {
-        const payload = this.jwtService.decode(jwt);
+    decodeUserSessionJwt(jwt: string): JwtSessionPayload {
+        const payload = this.jwtService.decode(jwt) as JwtSessionPayload;
         return payload;
+    }
+    isUserSessionJwtExpired(jwt: string) {
+        const payload = this.decodeUserSessionJwt(jwt);
+        return payload.iat + payload.max_age * 1000 < new Date().getTime();
+    }
+    generateSessionId() {
+        return randomBytes(4).toString('hex');
     }
 }

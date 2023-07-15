@@ -1,24 +1,32 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
     constructor(private readonly authService: AuthService) {}
-    canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-        const req: any = context.switchToHttp().getRequest(); // this method returns a Request object with a different structure. type left as any
-        const sessionCookie = this.extractSessionJwt(req);
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        const req = context.switchToHttp().getRequest<Request>();
+        const sessionCookie = this.extractSessionCookie(req);
+        console.log(`Guard for route ${req.url}`);
         if (sessionCookie.length == 0) {
             return false;
         }
-        const isAuthenticated = this.authService.verifyUserSessionJwt(sessionCookie);
+        const isExpired = this.authService.isUserSessionJwtExpired(sessionCookie);
+        console.log('isExpired ', isExpired);
+        if (isExpired) {
+            return false;
+        }
+        const isAuthenticated = await this.authService.verifyUserSessionJwt(sessionCookie);
+        console.log('isAuthenticated ', isAuthenticated);
         if (isAuthenticated) {
-            req['user'] = this.authService.decodeUserSessionJwt(sessionCookie);
+            const decodedJwt = this.authService.decodeUserSessionJwt(sessionCookie);
+            req.user = decodedJwt;
             return true;
         }
         return false;
     }
-    extractSessionJwt(req: any): string {
+    extractSessionCookie(req: Request): string {
         try {
             const cookieHeader = req.headers.cookie;
             if (cookieHeader) {
