@@ -33,6 +33,10 @@ export class UserService {
         const user = await this.userModel.findOne({ _id: id }).exec();
         return user;
     }
+    async getUsers(offset: number, count: number): Promise<UserDocument[]> {
+        const userDocuments = await this.userModel.find().skip(offset).limit(count).exec();
+        return userDocuments;
+    }
     async createUser(createUserDto: CreateUserDto): Promise<UserDocument | null> {
         const isUnique = await this.isUniqueUsernameAndEmail(createUserDto.email, createUserDto.username);
         if (!isUnique) {
@@ -57,11 +61,14 @@ export class UserService {
 
     async deleteUser(userId: string): Promise<boolean> {
         try {
-            await this.userModel.findByIdAndDelete(userId).exec();
+            await this.deleteUserById(userId);
             return true;
         } catch (e) {
             return false;
         }
+    }
+    async deleteUserById(userId: string) {
+        await this.userModel.findByIdAndDelete(userId).exec();
     }
     async isUniqueUsernameAndEmail(email: string, username: string) {
         if (email !== '') {

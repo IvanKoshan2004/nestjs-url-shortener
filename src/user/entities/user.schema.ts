@@ -1,5 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Binary } from 'mongodb';
 import * as mongoose from 'mongoose';
 
 export class UserLogin {
@@ -16,6 +15,8 @@ export class User {
     username: string;
     @Prop()
     email: string;
+    @Prop({ enum: ['admin', 'user'], default: 'user' })
+    role: string;
     @Prop({ default: false })
     is_verified: boolean;
     @Prop({ default: new Date() })

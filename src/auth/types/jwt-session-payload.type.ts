@@ -4,4 +4,5 @@ export type JwtSessionPayload = {
     _id: string;
     iat: number;
     max_age: number;
+    role: string;
 };

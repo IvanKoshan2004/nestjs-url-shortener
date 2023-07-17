@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/user/dtos/create-user.dto';
 import { LoginUserDto } from 'src/auth/dtos/login-user.dto';
 import { Request, Response } from 'express';
-import { AuthGuard } from './auth.guard';
+import { AuthUserGuard } from './guards/auth-user.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -12,7 +12,7 @@ export class AuthController {
     loginUser(@Body() loginUserDto: LoginUserDto, @Res() res: Response) {
         return this.authService.loginUser(loginUserDto, res);
     }
-    @UseGuards(AuthGuard)
+    @UseGuards(AuthUserGuard)
     @Post('/logout')
     logoutUser(@Req() req: Request, @Res() res: Response) {
         return this.authService.logoutUser(req, res);

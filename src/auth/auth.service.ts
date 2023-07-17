@@ -7,7 +7,7 @@ import { UserLogin, UserDocument } from 'src/user/entities/user.schema';
 import { Response } from 'express';
 import { constants } from './auth.constants';
 import { UserService } from 'src/user/user.service';
-import { JwtSessionPayload } from './types/jwt-session-payload';
+import { JwtSessionPayload } from './types/jwt-session-payload.type';
 import { Request } from 'express';
 
 @Injectable()
@@ -107,6 +107,7 @@ export class AuthService {
             _id: user._id.toString(),
             iat: currentTime,
             max_age: 172800,
+            role: user.role,
         };
         const jwt = await this.jwtService.signAsync(payload, {
             secret: constants.jwtSecret,

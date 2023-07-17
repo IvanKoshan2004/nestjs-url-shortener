@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService } from '../auth.service';
 import { Request } from 'express';
 
 @Injectable()
-export class AuthGuard implements CanActivate {
+export class AuthBasicGuard implements CanActivate {
     constructor(private readonly authService: AuthService) {}
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const req = context.switchToHttp().getRequest<Request>();
@@ -19,12 +19,17 @@ export class AuthGuard implements CanActivate {
         }
         const isAuthenticated = await this.authService.verifyUserSessionJwt(sessionCookie);
         console.log('isAuthenticated ', isAuthenticated);
-        if (isAuthenticated) {
-            const decodedJwt = this.authService.decodeUserSessionJwt(sessionCookie);
-            req.user = decodedJwt;
-            return true;
+        if (!isAuthenticated) {
+            return false;
         }
-        return false;
+        const decodedJwt = this.authService.decodeUserSessionJwt(sessionCookie);
+        req.user = decodedJwt;
+
+        const isPassingAdditionalChecks = await this.additionalChecks(req);
+        if (!isPassingAdditionalChecks) {
+            return false;
+        }
+        return true;
     }
     extractSessionCookie(req: Request): string {
         try {
@@ -40,5 +45,9 @@ export class AuthGuard implements CanActivate {
         } catch (e) {
             return '';
         }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    additionalChecks(req: Request): boolean | Promise<boolean> {
+        return true;
     }
 }

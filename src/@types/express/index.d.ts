@@ -6,6 +6,7 @@ declare namespace Express {
             session_id: string;
             iat: number;
             max_age: number;
+            role: string;
         };
     }
 }

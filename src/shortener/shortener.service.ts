@@ -28,6 +28,21 @@ export class ShortenerService {
             shorturl: `http://${req.headers.host}/r/${newShortUrl.access_route}`,
         };
     }
+    async getShortUrlById(urlId: string) {
+        return await this.shortUrlModel.findById(urlId);
+    }
+    async getShortUrls(offset: number, count: number): Promise<ShortUrlDocument[]> {
+        const shortUrlDocuments = await this.shortUrlModel.find().skip(offset).limit(count).exec();
+        return shortUrlDocuments;
+    }
+    async getShortUrlStatisticsById(urlId: string) {
+        const shortUrlDocument = await this.shortUrlModel.findById(urlId);
+        const redirectDocuments = await this.redirectService.getRedirectDocumentsByShortUrlId(urlId);
+        return this.generateStatisticsFromRedirects(redirectDocuments, {
+            timeDivision: '1h',
+            timeDivisionStart: shortUrlDocument.creation_date,
+        });
+    }
     async getUrlStatistics(urlId: string, req: Request) {
         const shortUrlDocument = await this.getShortUrlDocumentIfAuthorized(urlId, req);
         if (!shortUrlDocument) {
@@ -145,5 +160,8 @@ export class ShortenerService {
             return { msg: "can't delete short url" };
         }
         shortUrl.deleteOne();
+    }
+    async deleteShortUrlById(urlId: string) {
+        return this.shortUrlModel.findByIdAndDelete(urlId);
     }
 }
