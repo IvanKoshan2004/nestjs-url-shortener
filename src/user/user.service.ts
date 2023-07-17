@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './entities/user.schema';
 import { Model } from 'mongoose';
-import { Request } from 'express';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 
@@ -12,30 +11,14 @@ export class UserService {
         @InjectModel('users')
         private userModel: Model<User>,
     ) {}
-
-    async getCurrentUser(req: Request) {
-        const { _id } = req.user;
-        const user = await this.userModel.findById(_id).exec();
-        return user;
+    async getUserById(id: string): Promise<UserDocument> {
+        return await this.userModel.findById(id).exec();
     }
-    async deleteCurrentUser(req: Request) {
-        const { _id } = req.user;
-        if (!(await this.deleteUser(_id))) {
-            return { msg: "can't delete user" };
-        }
-        return { msg: `deleted user with id ${_id}` };
-    }
-    async getUserByUsername(username: string) {
-        const user = await this.userModel.findOne({ username }).exec();
-        return user;
-    }
-    async getUserById(id: string) {
-        const user = await this.userModel.findOne({ _id: id }).exec();
-        return user;
+    async getUserByUsername(username: string): Promise<UserDocument> {
+        return await this.userModel.findOne({ username }).exec();
     }
     async getUsers(offset: number, count: number): Promise<UserDocument[]> {
-        const userDocuments = await this.userModel.find().skip(offset).limit(count).exec();
-        return userDocuments;
+        return await this.userModel.find().skip(offset).limit(count).exec();
     }
     async createUser(createUserDto: CreateUserDto): Promise<UserDocument | null> {
         const isUnique = await this.isUniqueUsernameAndEmail(createUserDto.email, createUserDto.username);
@@ -46,52 +29,40 @@ export class UserService {
         await newUser.save();
         return newUser;
     }
-    async updateUser(updateUserDto: UpdateUserDto) {
+    async updateUser(updateUserDto: UpdateUserDto): Promise<UserDocument | null> {
         const isUnique = await this.isUniqueUsernameAndEmail(updateUserDto.email, updateUserDto.username);
         if (!isUnique) {
-            return { msg: "can't update user" };
+            return null;
         }
         const userDocument = await this.userModel.findOne().exec();
         for (const dtoKey of Object.keys(updateUserDto)) {
             userDocument[dtoKey] = updateUserDto[dtoKey];
             userDocument.markModified(dtoKey);
         }
-        return { msg: 'updated user', user: userDocument };
+        userDocument.save();
+        return userDocument;
     }
 
-    async deleteUser(userId: string): Promise<boolean> {
-        try {
-            await this.deleteUserById(userId);
-            return true;
-        } catch (e) {
-            return false;
-        }
+    async deleteUserById(userId: string): Promise<UserDocument> {
+        return await this.userModel.findByIdAndDelete(userId).exec();
     }
-    async deleteUserById(userId: string) {
-        await this.userModel.findByIdAndDelete(userId).exec();
-    }
-    async isUniqueUsernameAndEmail(email: string, username: string) {
+
+    private async isUniqueUsernameAndEmail(email: string, username: string): Promise<boolean> {
         if (email !== '') {
             const emailExists = await this.userModel
                 .findOne({
-                    email: email,
+                    email,
                 })
                 .exec();
-            if (emailExists) {
-                return false;
-                // return { msg: 'user with this email exists' };
-            }
+            if (emailExists) return false;
         }
         if (username !== '') {
             const usernameExists = await this.userModel
                 .findOne({
-                    username: username,
+                    username,
                 })
                 .exec();
-            if (usernameExists) {
-                return false;
-                // return { msg: 'user with this username exists' };
-            }
+            if (usernameExists) return false;
         }
         return true;
     }

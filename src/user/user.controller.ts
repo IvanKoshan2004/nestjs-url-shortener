@@ -1,25 +1,40 @@
-import { Controller, Delete, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { AuthUserGuard } from 'src/auth/guards/auth-user.guard';
-import { Request } from 'express';
+import { User } from 'src/decorators/user.decorator';
 
 @Controller('user')
 export class UserController {
     constructor(private readonly userService: UserService) {}
     @Get('/:username')
-    getUser(@Param('username') username: string) {
-        return this.userService.getUserByUsername(username);
+    async getUserByUsername(@Param('username') username: string) {
+        try {
+            const user = await this.userService.getUserByUsername(username);
+            return { message: 'Retrieved user', status: 'ok', data: user };
+        } catch (error) {
+            return { message: "Can't retrive the user", status: 'error', error };
+        }
     }
 
     @UseGuards(AuthUserGuard)
     @Get('')
-    getOwnUser(@Req() req: Request) {
-        return this.userService.getCurrentUser(req);
+    async getCurrentUser(@User('_id') userId: string) {
+        try {
+            const user = await this.userService.getUserById(userId);
+            return { message: 'Retrieved user', status: 'ok', data: user };
+        } catch (error) {
+            return { message: "Can't retrive the user", status: 'error', error };
+        }
     }
 
     @UseGuards(AuthUserGuard)
     @Delete('')
-    deleteCurrentUser(@Req() req: Request) {
-        return this.userService.deleteCurrentUser(req);
+    async deleteCurrentUser(@User('_id') userId: string) {
+        try {
+            const user = await this.userService.deleteUserById(userId);
+            return { message: 'Delete user', status: 'ok', data: user };
+        } catch (error) {
+            return { message: "Can't retrive the user", status: 'error', error };
+        }
     }
 }
