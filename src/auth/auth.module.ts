@@ -1,9 +1,11 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtModule, JwtService } from '@nestjs/jwt';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UserSchema } from 'src/user/entities/user.schema';
 import { constants } from './auth.constants';
-import { UserModule } from 'src/user/user.module';
+import { UserService } from 'src/user/user.service';
 
 @Module({
     imports: [
@@ -12,10 +14,10 @@ import { UserModule } from 'src/user/user.module';
             secret: constants.jwtSecret,
             signOptions: { expiresIn: '2d' },
         }),
-        forwardRef(() => UserModule),
+        MongooseModule.forFeature([{ name: 'users', schema: UserSchema }]),
     ],
     controllers: [AuthController],
-    providers: [AuthService, JwtService],
+    providers: [AuthService, JwtService, UserService],
     exports: [AuthService],
 })
 export class AuthModule {}
