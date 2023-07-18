@@ -3,7 +3,8 @@ import { ShortenerService } from './shortener.service';
 import { ShortenUrlDto } from './dtos/shorten-url.dto';
 import { ShortUrlEditDto } from './dtos/short-url-edit.dto';
 import { AuthUserGuard } from 'src/auth/guards/auth-user.guard';
-import { Request } from 'express';
+import { User } from 'src/decorators/user.decorator';
+import { controllerTryCatchWrapper } from 'src/lib/controller-try-catch-wrapper';
 
 @Controller('shortener')
 export class ShortenerController {
@@ -11,24 +12,39 @@ export class ShortenerController {
 
     @UseGuards(AuthUserGuard)
     @Post()
-    shortenUrl(@Body() shortenUrlDto: ShortenUrlDto, @Req() req: Request) {
-        return this.shortenerService.shortenUrl(shortenUrlDto, req);
+    createShortUrl(@Body() shortenUrlDto: ShortenUrlDto, @User('_id') userId: string) {
+        return controllerTryCatchWrapper(async () => {
+            const shortUrl = await this.shortenerService.createShortUrl(shortenUrlDto, userId);
+            return shortUrl;
+        });
     }
 
     @UseGuards(AuthUserGuard)
     @Get(':urlId/statistics')
-    getUrlStatistics(@Param('urlId') urlId: string, @Req() req: Request) {
-        return this.shortenerService.getUrlStatistics(urlId, req);
+    getShortUrlRedirectStatistics(@Param('urlId') urlId: string, @User('_id') userId: string) {
+        return controllerTryCatchWrapper(async () => {
+            const shortUrl = await this.shortenerService.getShortUrlByIdIfCreatedByUser(urlId, userId);
+            const statistics = await this.shortenerService.getShortUrlStatistics(shortUrl, { timeDivision: '1h' });
+            return statistics;
+        });
     }
 
     @UseGuards(AuthUserGuard)
-    @Patch(':urlId/edit')
-    editUrl(@Param('urlId') urlId: string, @Body() urlEditDto: ShortUrlEditDto, @Req() req: Request) {
-        return this.shortenerService.editUrl(urlId, req, urlEditDto);
+    @Patch(':urlId')
+    editUrl(@Param('urlId') urlId: string, @Body() urlEditDto: ShortUrlEditDto, @User('_id') userId: string) {
+        return controllerTryCatchWrapper(async () => {
+            const shortUrl = await this.shortenerService.getShortUrlByIdIfCreatedByUser(urlId, userId);
+            const updatedShortUrl = await this.shortenerService.updateShortUrl(shortUrl, urlEditDto);
+            return updatedShortUrl;
+        });
     }
     @UseGuards(AuthUserGuard)
-    @Delete(':urlId/delete')
-    deleteOwnUrl(@Param('urlId') urlId: string, @Req() req: Request) {
-        return this.shortenerService.deleteOwnShortUrl(urlId, req);
+    @Delete(':urlId')
+    deleteOwnUrl(@Param('urlId') urlId: string, @User('_id') userId: string) {
+        return controllerTryCatchWrapper(async () => {
+            const shortUrl = await this.shortenerService.getShortUrlByIdIfCreatedByUser(urlId, userId);
+            await shortUrl.deleteOne();
+            return '';
+        });
     }
 }

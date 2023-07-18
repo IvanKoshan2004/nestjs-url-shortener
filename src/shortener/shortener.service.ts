@@ -10,6 +10,9 @@ import { randomBytes } from 'crypto';
 import { ObjectId } from 'mongodb';
 import { RedirectDocument } from 'src/redirect/entities/redirect.schema';
 import { RedirectService } from 'src/redirect/redirect.service';
+import { incrementSetEntry } from 'src/lib/increment-set-entry';
+import { countViewsInTimeDivisions } from 'src/lib/count-views-in-time-divisions';
+import { RedirectStatistics } from 'src/shortener/types/redirect-statistics.type';
 
 @Injectable()
 export class ShortenerService {
@@ -19,55 +22,61 @@ export class ShortenerService {
         private readonly redirectService: RedirectService,
     ) {}
 
-    async shortenUrl(shortenUrlDto: ShortenUrlDto, req: Request) {
-        const { _id } = req.user;
-        const newShortUrl = await this.generateShortUrlDocument(shortenUrlDto, _id);
-        newShortUrl.save();
-        return {
-            msg: `created new short with id ${newShortUrl._id}`,
-            shorturl: `http://${req.headers.host}/r/${newShortUrl.access_route}`,
-        };
-    }
-    async getShortUrlById(urlId: string) {
+    async getShortUrlById(urlId: string): Promise<ShortUrlDocument> {
+        if (!isObjectIdOrHexString(urlId)) {
+            throw Error('Incorrect url id');
+        }
         return await this.shortUrlModel.findById(urlId);
     }
     async getShortUrls(offset: number, count: number): Promise<ShortUrlDocument[]> {
         const shortUrlDocuments = await this.shortUrlModel.find().skip(offset).limit(count).exec();
         return shortUrlDocuments;
     }
-    async getShortUrlStatisticsById(urlId: string) {
-        const shortUrlDocument = await this.shortUrlModel.findById(urlId);
+    async getShortUrlByIdIfCreatedByUser(urlId: string, creatorUserId: string): Promise<ShortUrlDocument> {
+        const shortUrlDocument = await this.getShortUrlById(urlId);
+        if (shortUrlDocument.creator_id.toString() != creatorUserId) {
+            throw Error('Unauthorized user');
+        }
+        return shortUrlDocument;
+    }
+    async createShortUrl(shortenUrlDto: ShortenUrlDto, creatorUserId: string): Promise<ShortUrlDocument> {
+        const newShortUrl = await this.generateShortUrlDocument(shortenUrlDto, creatorUserId);
+        await newShortUrl.save();
+        return newShortUrl;
+    }
+    async getShortUrlStatisticsById(
+        urlId: string,
+        options: { timeDivision: string; timeDivisionStart?: Date },
+    ): Promise<RedirectStatistics> {
+        const shortUrl = await this.shortUrlModel.findById(urlId);
+        const statistics = await this.getShortUrlStatistics(shortUrl, options);
+        return statistics;
+    }
+    async getShortUrlStatistics(
+        shortUrl: ShortUrlDocument,
+        options: { timeDivision: string; timeDivisionStart?: Date },
+    ): Promise<RedirectStatistics> {
+        const urlId = shortUrl._id;
         const redirectDocuments = await this.redirectService.getRedirectDocumentsByShortUrlId(urlId);
         return this.generateStatisticsFromRedirects(redirectDocuments, {
-            timeDivision: '1h',
-            timeDivisionStart: shortUrlDocument.creation_date,
+            timeDivision: options.timeDivision,
+            timeDivisionStart: options.timeDivisionStart ?? shortUrl.creation_date,
         });
     }
-    async getUrlStatistics(urlId: string, req: Request) {
-        const shortUrlDocument = await this.getShortUrlDocumentIfAuthorized(urlId, req);
-        if (!shortUrlDocument) {
-            return { msg: "can't get url statistics" };
-        }
-        const redirectDocuments = await this.redirectService.getRedirectDocumentsByShortUrlId(urlId);
-        return this.generateStatisticsFromRedirects(redirectDocuments, {
-            timeDivision: '1h',
-            timeDivisionStart: shortUrlDocument.creation_date,
-        });
-    }
-    async editUrl(urlId: string, req: Request, urlEditDto: ShortUrlEditDto) {
-        const shortUrlDocument = await this.getShortUrlDocumentIfAuthorized(urlId, req);
-        if (!shortUrlDocument) {
-            return { msg: "can't edit the url" };
-        }
+    async updateShortUrl(shortUrl: ShortUrlDocument, urlEditDto: ShortUrlEditDto) {
         for (const dtoKey of Object.keys(urlEditDto)) {
-            shortUrlDocument[dtoKey] = urlEditDto[dtoKey];
-            shortUrlDocument.markModified(dtoKey);
+            shortUrl[dtoKey] = urlEditDto[dtoKey];
+            shortUrl.markModified(dtoKey);
         }
-        shortUrlDocument.save();
+        await shortUrl.save();
+        return shortUrl;
     }
-    async generateShortUrlDocument(shortenUrlDto: ShortenUrlDto, userId: string): Promise<ShortUrlDocument> {
+    private async generateShortUrlDocument(
+        shortenUrlDto: ShortenUrlDto,
+        creatorUserId: string,
+    ): Promise<ShortUrlDocument> {
         const newShortUrl = new this.shortUrlModel(shortenUrlDto);
-        const createdBy = await this.userModel.findById(userId).exec();
+        const createdBy = await this.userModel.findById(creatorUserId).exec();
         const creationDate = new Date();
         const milisecondsInDay = 86400 * 1000;
         newShortUrl.creation_date = creationDate;
@@ -76,39 +85,20 @@ export class ShortenerService {
         newShortUrl.access_route = shortenUrlDto.access_route ?? this.generateAccessRoute();
         return newShortUrl;
     }
-    async getShortUrlDocumentIfAuthorized(urlId: string, req: Request): Promise<ShortUrlDocument | null> {
-        try {
-            if (!isObjectIdOrHexString(urlId)) {
-                return null;
-            }
-            const urlIdObject = new ObjectId(urlId);
-            const shortUrlDocument = await this.shortUrlModel.findById(urlIdObject).exec();
-            if (shortUrlDocument.creator_id.toString() != req.user._id.toString()) {
-                return null;
-            }
-            return shortUrlDocument;
-        } catch (e) {
-            return null;
-        }
+    async deleteShortUrlById(urlId: string) {
+        return this.shortUrlModel.findByIdAndDelete(urlId);
     }
-    generateAccessRoute(): string {
+    private generateAccessRoute(): string {
         return randomBytes(4).toString('hex');
     }
-    generateStatisticsFromRedirects(
+    private generateStatisticsFromRedirects(
         redirects: RedirectDocument[],
         options: { timeDivision: string; timeDivisionStart: Date },
-    ) {
+    ): RedirectStatistics {
         const redirectCount = redirects.length;
         const countries = {};
         const deviceTypes = {};
         const referrers = {};
-        function incrementSetEntry(object: any, property: any, defaultProperty: string) {
-            if (property == '') {
-                object[defaultProperty] = (object[defaultProperty] || 0) + 1;
-            } else {
-                object[property] = (object[property] || 0) + 1;
-            }
-        }
         const viewTimes: Date[] = [];
         for (const redirect of redirects) {
             incrementSetEntry(countries, redirect.country, 'unknown');
@@ -116,33 +106,9 @@ export class ShortenerService {
             incrementSetEntry(referrers, redirect.referrer, 'none');
             viewTimes.push(redirect.view_time);
         }
-
-        function generateTimeStatistics(startDate: Date, timeDivision: string, redirectDates: Date[]) {
-            const timeInMiliseconds: Record<string, number> = {
-                h: 3600000,
-                d: 86400000,
-                w: 86400000 * 7,
-            };
-            const currentTime = new Date().getTime();
-            const matches = timeDivision.match(/^(\d+)([hdw])$/);
-            if (!matches) {
-                throw new Error('Invalid time division format');
-            }
-            const timeValue = parseInt(matches[1]);
-            const timeUnit = matches[2];
-            const timeIncrement = timeValue * timeInMiliseconds[timeUnit];
-
-            const divisionCount = Math.floor((currentTime - startDate.getTime()) / timeIncrement) + 1;
-            const timeDivisionRedirectCounts = Array(divisionCount).fill(0);
-            for (const redirectDate of redirectDates) {
-                const divisionIndex = Math.floor((redirectDate.getTime() - startDate.getTime()) / timeIncrement);
-                timeDivisionRedirectCounts[divisionIndex]++;
-            }
-            return { startDate, timeDivision, timeDivisionInMS: timeIncrement, timeDivisionRedirectCounts };
-        }
-
-        const redirectsDuringPeriod = generateTimeStatistics(
+        const redirectsDuringPeriod = countViewsInTimeDivisions(
             options.timeDivisionStart,
+            new Date(),
             options.timeDivision,
             viewTimes,
         );
@@ -153,15 +119,5 @@ export class ShortenerService {
             deviceTypes,
             redirectsDuringPeriod,
         };
-    }
-    async deleteOwnShortUrl(urlId: string, req: Request) {
-        const shortUrl = await this.shortUrlModel.findById(urlId).exec();
-        if (shortUrl.creator_id.toString() !== req.user._id) {
-            return { msg: "can't delete short url" };
-        }
-        shortUrl.deleteOne();
-    }
-    async deleteShortUrlById(urlId: string) {
-        return this.shortUrlModel.findByIdAndDelete(urlId);
     }
 }
