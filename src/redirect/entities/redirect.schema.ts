@@ -13,7 +13,7 @@ export class Redirect {
     country: string;
     @Prop()
     user_agent: string;
-    @Prop()
+    @Prop({ default: new Date() })
     view_time: Date;
     @Prop()
     referrer: string;

@@ -7,7 +7,6 @@ import { Model, isObjectIdOrHexString } from 'mongoose';
 import { ShortUrl, ShortUrlDocument } from './entities/shorturl.schema';
 import { User } from 'src/user/entities/user.schema';
 import { randomBytes } from 'crypto';
-import { ObjectId } from 'mongodb';
 import { RedirectDocument } from 'src/redirect/entities/redirect.schema';
 import { RedirectService } from 'src/redirect/redirect.service';
 import { incrementSetEntry } from 'src/lib/increment-set-entry';
@@ -26,7 +25,10 @@ export class ShortenerService {
         if (!isObjectIdOrHexString(urlId)) {
             throw Error('Incorrect url id');
         }
-        return await this.shortUrlModel.findById(urlId);
+        return await this.shortUrlModel.findById(urlId).exec();
+    }
+    async getShortUrlByAccessRoute(accessRoute: string): Promise<ShortUrlDocument> {
+        return await this.shortUrlModel.findOne({ access_route: accessRoute }).exec();
     }
     async getShortUrls(offset: number, count: number): Promise<ShortUrlDocument[]> {
         const shortUrlDocuments = await this.shortUrlModel.find().skip(offset).limit(count).exec();
@@ -48,7 +50,7 @@ export class ShortenerService {
         urlId: string,
         options: { timeDivision: string; timeDivisionStart?: Date },
     ): Promise<RedirectStatistics> {
-        const shortUrl = await this.shortUrlModel.findById(urlId);
+        const shortUrl = await this.getShortUrlById(urlId);
         const statistics = await this.getShortUrlStatistics(shortUrl, options);
         return statistics;
     }
@@ -71,6 +73,9 @@ export class ShortenerService {
         await shortUrl.save();
         return shortUrl;
     }
+    async deleteShortUrlById(urlId: string) {
+        return this.shortUrlModel.findByIdAndDelete(urlId);
+    }
     private async generateShortUrlDocument(
         shortenUrlDto: ShortenUrlDto,
         creatorUserId: string,
@@ -84,9 +89,6 @@ export class ShortenerService {
         newShortUrl.creator_id = createdBy;
         newShortUrl.access_route = shortenUrlDto.access_route ?? this.generateAccessRoute();
         return newShortUrl;
-    }
-    async deleteShortUrlById(urlId: string) {
-        return this.shortUrlModel.findByIdAndDelete(urlId);
     }
     private generateAccessRoute(): string {
         return randomBytes(4).toString('hex');

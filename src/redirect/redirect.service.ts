@@ -2,38 +2,42 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Request, Response } from 'express';
 import { Model } from 'mongoose';
-import { Redirect } from './entities/redirect.schema';
+import { Redirect, RedirectDocument } from './entities/redirect.schema';
 import { RedirectDto } from './dtos/redirect.dto';
 import { ShortUrl, ShortUrlDocument } from 'src/shortener/entities/shorturl.schema';
 import * as geoip from 'geoip-lite';
 import * as DeviceDetector from 'device-detector-js';
+import { parseReferrerDomain } from 'src/lib/parse-referrer-domain';
+import { ShortenerService } from 'src/shortener/shortener.service';
 
 @Injectable()
 export class RedirectService {
     constructor(
         @InjectModel('redirects') private redirectModel: Model<Redirect>,
-        @InjectModel('shorturls') private shortUrlModel: Model<ShortUrl>,
+        private readonly shortenerService: ShortenerService,
     ) {}
-    async redirectFrom(accessRoute: string, req: Request, res: Response) {
-        const shortUrlDocument = await this.shortUrlModel.findOne({ access_route: accessRoute }).exec();
+    async redirectFrom(accessRoute: string, req: Request, res: Response): Promise<void> {
+        const shortUrlDocument = await this.shortenerService.getShortUrlByAccessRoute(accessRoute);
         const isExpired = this.isShortUrlExpired(shortUrlDocument);
         if (isExpired) {
-            return { msg: 'shorturl is expired' };
+            throw Error('Shortened url has expired');
         }
         res.redirect(shortUrlDocument.url);
         const redirectDto = this.generateRedirectDto(req, shortUrlDocument._id.toString());
-        await this.saveRedirectData(redirectDto);
-        return {};
+        await this.createRedirect(redirectDto);
     }
-    generateRedirectDto(req: Request, urlId: string): RedirectDto {
+    async getRedirectDocumentsByShortUrlId(urlId) {
+        return await this.redirectModel.find({ url_id: urlId }).exec();
+    }
+    async createRedirect(redirectDto: RedirectDto): Promise<RedirectDocument> {
+        const newRedirect = await this.redirectModel.create(redirectDto);
+        newRedirect.save();
+        return newRedirect;
+    }
+    private generateRedirectDto(req: Request, urlId: string): RedirectDto {
         const ip = req.ip;
         const geo = geoip.lookup(ip);
         const country = geo && geo.country ? geo.country : '';
-        function parseReferrerDomain(referrer: string) {
-            const regexp = new RegExp('http(?:s)?://(.*)/');
-            const res = referrer.match(regexp);
-            return res ? res[1] : '';
-        }
         const unparsedReferrer = req.headers.referer;
         const referrer = unparsedReferrer ? parseReferrerDomain(unparsedReferrer) : '';
         const user_agent = req.headers['user-agent'];
@@ -50,17 +54,9 @@ export class RedirectService {
             device_type,
         };
     }
-    async saveRedirectData(redirectDto: RedirectDto) {
-        const newRedirect = await this.redirectModel.create(redirectDto);
-        newRedirect.view_time = new Date();
-        newRedirect.save();
-    }
-    isShortUrlExpired(shortUrlDocument: ShortUrlDocument) {
+    private isShortUrlExpired(shortUrlDocument: ShortUrlDocument): boolean {
         const currentTime = new Date();
         const expirationTime = shortUrlDocument.expiration_date;
         return currentTime > expirationTime;
-    }
-    async getRedirectDocumentsByShortUrlId(urlId) {
-        return await this.redirectModel.find({ url_id: urlId }).exec();
     }
 }
