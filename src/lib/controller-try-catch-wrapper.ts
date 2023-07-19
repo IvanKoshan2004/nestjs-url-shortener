@@ -14,7 +14,7 @@ export async function controllerTryCatchWrapper(
         errorMessage: 'Error occured',
         showError: true,
     };
-    options = Object.assign({}, options, defaultOptions);
+    options = Object.assign({}, defaultOptions, options);
     let response;
     try {
         const data = await callback(modifiedMessages);
