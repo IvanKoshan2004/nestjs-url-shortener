@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ShortenerService } from './shortener.service';
 import { ShortenerController } from './shortener.controller';
 import { AuthModule } from 'src/auth/auth.module';
@@ -10,7 +10,7 @@ import { UserModule } from 'src/user/user.module';
 
 const MongooseShortUrlModule = MongooseModule.forFeature([{ name: 'shorturls', schema: ShortUrlSchema }]);
 @Module({
-    imports: [MongooseShortUrlModule, UserModule, AuthModule, forwardRef(() => RedirectModule)],
+    imports: [MongooseShortUrlModule, UserModule, AuthModule, RedirectModule],
     providers: [ShortenerService, RedirectService],
     controllers: [ShortenerController],
     exports: [MongooseShortUrlModule, ShortenerService],
