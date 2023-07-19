@@ -4,7 +4,6 @@ import { pbkdf2, randomBytes } from 'crypto';
 import { LoginUserDto } from 'src/auth/dtos/login-user.dto';
 import { CreateUserDto } from 'src/user/dtos/create-user.dto';
 import { UserLogin, UserDocument } from 'src/user/entities/user.schema';
-import { Response } from 'express';
 import { constants } from './auth.constants';
 import { UserService } from 'src/user/user.service';
 import { JwtSessionPayload } from './types/jwt-session-payload.type';

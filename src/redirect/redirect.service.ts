@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Request, Response } from 'express';
 import { Model } from 'mongoose';
 import { Redirect, RedirectDocument } from './entities/redirect.schema';
 import { RedirectDto } from './dtos/redirect.dto';
-import { ShortUrl, ShortUrlDocument } from 'src/shortener/entities/shorturl.schema';
+import { ShortUrlDocument } from 'src/shortener/entities/shorturl.schema';
 import * as geoip from 'geoip-lite';
 import * as DeviceDetector from 'device-detector-js';
 import { parseReferrerDomain } from 'src/lib/parse-referrer-domain';
@@ -14,6 +14,7 @@ import { ShortenerService } from 'src/shortener/shortener.service';
 export class RedirectService {
     constructor(
         @InjectModel('redirects') private redirectModel: Model<Redirect>,
+        @Inject(forwardRef(() => ShortenerService))
         private readonly shortenerService: ShortenerService,
     ) {}
     async redirectFrom(accessRoute: string, req: Request, res: Response): Promise<void> {

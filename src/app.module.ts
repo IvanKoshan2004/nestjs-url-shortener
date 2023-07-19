@@ -8,11 +8,13 @@ import { username, password } from './mongoose.config.json';
 import { AuthModule } from './auth/auth.module';
 import { RedirectModule } from './redirect/redirect.module';
 import { AdminModule } from './admin/admin.module';
+import { ConfigModule } from '@nestjs/config';
 @Module({
     imports: [
+        ConfigModule.forRoot(),
+        MongooseModule.forRoot(`mongodb+srv://${username}:${password}@maincluster.vettm3l.mongodb.net/shortener`),
         UserModule,
         ShortenerModule,
-        MongooseModule.forRoot(`mongodb+srv://${username}:${password}@maincluster.vettm3l.mongodb.net/shortener`),
         AuthModule,
         RedirectModule,
         AdminModule,

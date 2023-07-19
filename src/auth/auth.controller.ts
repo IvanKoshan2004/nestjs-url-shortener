@@ -1,8 +1,8 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from 'src/user/dtos/create-user.dto';
 import { LoginUserDto } from 'src/auth/dtos/login-user.dto';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { AuthUserGuard } from './guards/auth-user.guard';
 import { controllerTryCatchWrapper } from 'src/lib/controller-try-catch-wrapper';
 import { User } from 'src/decorators/user.decorator';

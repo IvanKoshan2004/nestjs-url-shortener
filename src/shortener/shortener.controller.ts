@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Req, Param, Body, Patch, UseGuards, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Patch, UseGuards, Delete } from '@nestjs/common';
 import { ShortenerService } from './shortener.service';
 import { ShortenUrlDto } from './dtos/shorten-url.dto';
 import { ShortUrlEditDto } from './dtos/short-url-edit.dto';

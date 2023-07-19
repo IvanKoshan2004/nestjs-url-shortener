@@ -1,23 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { ShortenUrlDto } from './dtos/shorten-url.dto';
 import { ShortUrlEditDto } from './dtos/short-url-edit.dto';
-import { Request } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isObjectIdOrHexString } from 'mongoose';
 import { ShortUrl, ShortUrlDocument } from './entities/shorturl.schema';
-import { User } from 'src/user/entities/user.schema';
 import { randomBytes } from 'crypto';
 import { RedirectDocument } from 'src/redirect/entities/redirect.schema';
 import { RedirectService } from 'src/redirect/redirect.service';
 import { incrementSetEntry } from 'src/lib/increment-set-entry';
 import { countViewsInTimeDivisions } from 'src/lib/count-views-in-time-divisions';
 import { RedirectStatistics } from 'src/shortener/types/redirect-statistics.type';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class ShortenerService {
     constructor(
         @InjectModel('shorturls') private shortUrlModel: Model<ShortUrl>,
-        @InjectModel('users') private userModel: Model<User>,
+        private readonly userService: UserService,
         private readonly redirectService: RedirectService,
     ) {}
 
@@ -81,7 +80,7 @@ export class ShortenerService {
         creatorUserId: string,
     ): Promise<ShortUrlDocument> {
         const newShortUrl = new this.shortUrlModel(shortenUrlDto);
-        const createdBy = await this.userModel.findById(creatorUserId).exec();
+        const createdBy = await this.userService.getUserById(creatorUserId);
         const creationDate = new Date();
         const milisecondsInDay = 86400 * 1000;
         newShortUrl.creation_date = creationDate;
