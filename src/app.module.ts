@@ -4,15 +4,20 @@ import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { ShortenerModule } from './shortener/shortener.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { username, password } from './mongoose.config.json';
 import { AuthModule } from './auth/auth.module';
 import { RedirectModule } from './redirect/redirect.module';
 import { AdminModule } from './admin/admin.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 @Module({
     imports: [
-        ConfigModule.forRoot(),
-        MongooseModule.forRoot(`mongodb+srv://${username}:${password}@maincluster.vettm3l.mongodb.net/shortener`),
+        ConfigModule.forRoot({ isGlobal: true }),
+        MongooseModule.forRootAsync({
+            imports: [ConfigModule],
+            useFactory: async (configService: ConfigService) => ({
+                uri: configService.get('MONGODB_URI'),
+            }),
+            inject: [ConfigService],
+        }),
         UserModule,
         ShortenerModule,
         AuthModule,

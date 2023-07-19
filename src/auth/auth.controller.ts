@@ -6,16 +6,17 @@ import { Response } from 'express';
 import { AuthUserGuard } from './guards/auth-user.guard';
 import { controllerTryCatchWrapper } from 'src/lib/controller-try-catch-wrapper';
 import { User } from 'src/decorators/user.decorator';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) {}
+    constructor(private readonly authService: AuthService, private readonly configService: ConfigService) {}
     @Post('/login')
     loginUser(@Body() loginUserDto: LoginUserDto, @Res() res: Response) {
         return controllerTryCatchWrapper(
             async () => {
                 const userSessionToken = await this.authService.loginUser(loginUserDto);
-                res.cookie('session', userSessionToken, {
+                res.cookie(this.configService.get('SESSION_COOKIE_NAME'), userSessionToken, {
                     httpOnly: true,
                     maxAge: 172800,
                 });
@@ -30,7 +31,7 @@ export class AuthController {
             async () => {
                 const hasLoggedOut = await this.authService.logoutUser(userId);
                 if (hasLoggedOut) {
-                    res.cookie('session', '');
+                    res.cookie(this.configService.get('SESSION_COOKIE_NAME'), '');
                 }
             },
             { res, successMessage: 'Logged out', errorMessage: "Can't log out" },
