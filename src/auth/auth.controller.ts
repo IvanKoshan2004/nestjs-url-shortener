@@ -12,28 +12,36 @@ export class AuthController {
     constructor(private readonly authService: AuthService) {}
     @Post('/login')
     loginUser(@Body() loginUserDto: LoginUserDto, @Res() res: Response) {
-        return controllerTryCatchWrapper(async () => {
-            const userSessionToken = await this.authService.loginUser(loginUserDto);
-            res.cookie('session', userSessionToken, {
-                httpOnly: true,
-                maxAge: 172800,
-            });
-        });
+        return controllerTryCatchWrapper(
+            async () => {
+                const userSessionToken = await this.authService.loginUser(loginUserDto);
+                res.cookie('session', userSessionToken, {
+                    httpOnly: true,
+                    maxAge: 172800,
+                });
+            },
+            { res, successMessage: 'Logged in', errorMessage: "Can't login" },
+        );
     }
     @UseGuards(AuthUserGuard)
     @Post('/logout')
     logoutUser(@User('_id') userId: string, @Res() res: Response) {
-        return controllerTryCatchWrapper(async () => {
-            const hasLoggedOut = await this.authService.logoutUser(userId);
-            if (hasLoggedOut) {
-                res.cookie('session', '');
-            }
-        });
+        return controllerTryCatchWrapper(
+            async () => {
+                const hasLoggedOut = await this.authService.logoutUser(userId);
+                if (hasLoggedOut) {
+                    res.cookie('session', '');
+                }
+            },
+            { res, successMessage: 'Logged out', errorMessage: "Can't log out" },
+        );
     }
     @Post('/register')
     registerUser(@Body() createUserDto: CreateUserDto) {
-        return controllerTryCatchWrapper(() => {
-            return this.authService.registerUser(createUserDto);
+        return controllerTryCatchWrapper(async (messages) => {
+            const newUser = await this.authService.registerUser(createUserDto);
+            messages.successMessage = `Created a user with id ${newUser._id}`;
+            return newUser;
         });
     }
 }

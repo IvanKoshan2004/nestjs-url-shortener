@@ -13,8 +13,9 @@ export class ShortenerController {
     @UseGuards(AuthUserGuard)
     @Post()
     createShortUrl(@Body() shortenUrlDto: ShortenUrlDto, @User('_id') userId: string) {
-        return controllerTryCatchWrapper(async () => {
+        return controllerTryCatchWrapper(async (messages) => {
             const shortUrl = await this.shortenerService.createShortUrl(shortenUrlDto, userId);
+            messages.successMessage = `Created a short url with id ${shortUrl._id}`;
             return shortUrl;
         });
     }
@@ -31,20 +32,21 @@ export class ShortenerController {
 
     @UseGuards(AuthUserGuard)
     @Patch(':urlId')
-    editUrl(@Param('urlId') urlId: string, @Body() urlEditDto: ShortUrlEditDto, @User('_id') userId: string) {
-        return controllerTryCatchWrapper(async () => {
+    updateShortUrl(@Param('urlId') urlId: string, @Body() urlEditDto: ShortUrlEditDto, @User('_id') userId: string) {
+        return controllerTryCatchWrapper(async (messages) => {
             const shortUrl = await this.shortenerService.getShortUrlByIdIfCreatedByUser(urlId, userId);
             const updatedShortUrl = await this.shortenerService.updateShortUrl(shortUrl, urlEditDto);
+            messages.successMessage = `Updated short url with id ${shortUrl._id}`;
             return updatedShortUrl;
         });
     }
     @UseGuards(AuthUserGuard)
     @Delete(':urlId')
-    deleteOwnUrl(@Param('urlId') urlId: string, @User('_id') userId: string) {
-        return controllerTryCatchWrapper(async () => {
+    deleteOwnShortUrl(@Param('urlId') urlId: string, @User('_id') userId: string) {
+        return controllerTryCatchWrapper(async (messages) => {
             const shortUrl = await this.shortenerService.getShortUrlByIdIfCreatedByUser(urlId, userId);
             await shortUrl.deleteOne();
-            return '';
+            messages.successMessage = `Deleted short url with id ${shortUrl._id}`;
         });
     }
 }

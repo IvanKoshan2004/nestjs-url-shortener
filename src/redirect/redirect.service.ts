@@ -1,4 +1,4 @@
-import { Inject, Injectable, forwardRef } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Request, Response } from 'express';
 import { Model } from 'mongoose';
@@ -19,9 +19,12 @@ export class RedirectService {
     ) {}
     async redirectFrom(accessRoute: string, req: Request, res: Response): Promise<void> {
         const shortUrlDocument = await this.shortenerService.getShortUrlByAccessRoute(accessRoute);
+        if (!shortUrlDocument) {
+            throw new BadRequestException();
+        }
         const isExpired = this.isShortUrlExpired(shortUrlDocument);
         if (isExpired) {
-            throw Error('Shortened url has expired');
+            throw new BadRequestException();
         }
         res.redirect(shortUrlDocument.url);
         const redirectDto = this.generateRedirectDto(req, shortUrlDocument._id.toString());
