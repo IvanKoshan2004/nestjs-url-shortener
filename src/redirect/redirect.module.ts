@@ -1,10 +1,11 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { RedirectService } from './redirect.service';
-import { RedirectController } from './redirect.controller';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ShortenerModule } from '../shortener/shortener.module';
+import { UserModule } from '../user/user.module';
 import { RedirectSchema } from './entities/redirect.schema';
-import { ShortenerModule } from 'src/shortener/shortener.module';
-import { UserModule } from 'src/user/user.module';
+import { RedirectController } from './redirect.controller';
+import { RedirectService } from './redirect.service';
+
 const MongooseRedirectModule = MongooseModule.forFeature([{ name: 'redirects', schema: RedirectSchema }]);
 @Module({
     imports: [MongooseRedirectModule, forwardRef(() => ShortenerModule), UserModule],

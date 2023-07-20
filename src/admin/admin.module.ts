@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
-import { RedirectModule } from 'src/redirect/redirect.module';
-import { UserModule } from 'src/user/user.module';
-import { ShortenerModule } from 'src/shortener/shortener.module';
-import { AuthModule } from 'src/auth/auth.module';
+import { RedirectModule } from '../redirect/redirect.module';
+import { UserModule } from '../user/user.module';
+import { ShortenerModule } from '../shortener/shortener.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
     imports: [UserModule, ShortenerModule, RedirectModule, AuthModule],

@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Param, Body, Patch, UseGuards, Delete } from '@nestjs/common';
-import { ShortenerService } from './shortener.service';
-import { ShortenUrlDto } from './dtos/shorten-url.dto';
+import { Controller, UseGuards, Post, Body, Get, Param, Patch, Delete } from '@nestjs/common';
+import { AuthUserGuard } from '../auth/guards/auth-user.guard';
+import { User } from '../decorators/user.decorator';
+import { controllerTryCatchWrapper } from '../lib/controller-try-catch-wrapper';
 import { ShortUrlEditDto } from './dtos/short-url-edit.dto';
-import { AuthUserGuard } from 'src/auth/guards/auth-user.guard';
-import { User } from 'src/decorators/user.decorator';
-import { controllerTryCatchWrapper } from 'src/lib/controller-try-catch-wrapper';
+import { ShortenUrlDto } from './dtos/shorten-url.dto';
+import { ShortenerService } from './shortener.service';
 
 @Controller('shortener')
 export class ShortenerController {

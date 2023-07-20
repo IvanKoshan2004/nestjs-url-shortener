@@ -1,14 +1,14 @@
-import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Request, Response } from 'express';
-import { Model } from 'mongoose';
-import { Redirect, RedirectDocument } from './entities/redirect.schema';
-import { RedirectDto } from './dtos/redirect.dto';
-import { ShortUrlDocument } from 'src/shortener/entities/shorturl.schema';
 import * as geoip from 'geoip-lite';
 import * as DeviceDetector from 'device-detector-js';
-import { parseReferrerDomain } from 'src/lib/parse-referrer-domain';
-import { ShortenerService } from 'src/shortener/shortener.service';
+import { ShortenerService } from '../shortener/shortener.service';
+import { Injectable, Inject, forwardRef, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { parseReferrerDomain } from '../lib/parse-referrer-domain';
+import { ShortUrlDocument } from '../shortener/entities/shorturl.schema';
+import { RedirectDto } from './dtos/redirect.dto';
+import { Redirect, RedirectDocument } from './entities/redirect.schema';
 
 @Injectable()
 export class RedirectService {

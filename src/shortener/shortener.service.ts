@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { ShortenUrlDto } from './dtos/shorten-url.dto';
-import { ShortUrlEditDto } from './dtos/short-url-edit.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, isObjectIdOrHexString } from 'mongoose';
-import { ShortUrl, ShortUrlDocument } from './entities/shorturl.schema';
 import { randomBytes } from 'crypto';
-import { RedirectDocument } from 'src/redirect/entities/redirect.schema';
-import { RedirectService } from 'src/redirect/redirect.service';
-import { incrementSetEntry } from 'src/lib/increment-set-entry';
-import { countViewsInTimeDivisions } from 'src/lib/count-views-in-time-divisions';
-import { RedirectStatistics } from 'src/shortener/types/redirect-statistics.type';
-import { UserService } from 'src/user/user.service';
+import { Model, isObjectIdOrHexString } from 'mongoose';
+import { countViewsInTimeDivisions } from '../lib/count-views-in-time-divisions';
+import { incrementSetEntry } from '../lib/increment-set-entry';
+import { RedirectDocument } from '../redirect/entities/redirect.schema';
+import { RedirectService } from '../redirect/redirect.service';
+import { UserService } from '../user/user.service';
+import { ShortUrlEditDto } from './dtos/short-url-edit.dto';
+import { ShortenUrlDto } from './dtos/shorten-url.dto';
+import { ShortUrl, ShortUrlDocument } from './entities/shorturl.schema';
+import { RedirectStatistics } from './types/redirect-statistics.type';
 
 @Injectable()
 export class ShortenerService {

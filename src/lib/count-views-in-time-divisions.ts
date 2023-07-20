@@ -1,4 +1,4 @@
-import { RedirectTimeStatistics } from 'src/shortener/types/redirect-statistics.type';
+import { RedirectTimeStatistics } from '../shortener/types/redirect-statistics.type';
 
 export function countViewsInTimeDivisions(
     startDate: Date,

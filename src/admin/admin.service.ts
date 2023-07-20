@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ShortUrlDocument } from 'src/shortener/entities/shorturl.schema';
-import { ShortenerService } from 'src/shortener/shortener.service';
-import { RedirectStatistics } from 'src/shortener/types/redirect-statistics.type';
-import { UserDocument } from 'src/user/entities/user.schema';
-import { UserService } from 'src/user/user.service';
+import { ShortUrlDocument } from '../shortener/entities/shorturl.schema';
+import { ShortenerService } from '../shortener/shortener.service';
+import { RedirectStatistics } from '../shortener/types/redirect-statistics.type';
+import { UserDocument } from '../user/entities/user.schema';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class AdminService {

@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { pbkdf2, randomBytes } from 'crypto';
-import { LoginUserDto } from 'src/auth/dtos/login-user.dto';
-import { CreateUserDto } from 'src/user/dtos/create-user.dto';
-import { UserLogin, UserDocument } from 'src/user/entities/user.schema';
+import { CreateUserDto } from '../user/dtos/create-user.dto';
+import { UserDocument, UserLogin } from '../user/entities/user.schema';
+import { UserService } from '../user/user.service';
 import { constants } from './auth.constants';
-import { UserService } from 'src/user/user.service';
+import { LoginUserDto } from './dtos/login-user.dto';
 import { JwtSessionPayload } from './types/jwt-session-payload.type';
 import { JwtSessionToken } from './types/jwt-session-token.type';
 

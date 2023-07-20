@@ -1,12 +1,12 @@
-import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { CreateUserDto } from 'src/user/dtos/create-user.dto';
-import { LoginUserDto } from 'src/auth/dtos/login-user.dto';
-import { Response } from 'express';
-import { AuthUserGuard } from './guards/auth-user.guard';
-import { controllerTryCatchWrapper } from 'src/lib/controller-try-catch-wrapper';
-import { User } from 'src/decorators/user.decorator';
+import { Controller, Post, Body, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { User } from '../decorators/user.decorator';
+import { controllerTryCatchWrapper } from '../lib/controller-try-catch-wrapper';
+import { CreateUserDto } from '../user/dtos/create-user.dto';
+import { AuthService } from './auth.service';
+import { LoginUserDto } from './dtos/login-user.dto';
+import { AuthUserGuard } from './guards/auth-user.guard';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {

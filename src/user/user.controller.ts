@@ -1,8 +1,8 @@
-import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Delete } from '@nestjs/common';
+import { AuthUserGuard } from '../auth/guards/auth-user.guard';
+import { controllerTryCatchWrapper } from '../lib/controller-try-catch-wrapper';
 import { UserService } from './user.service';
-import { AuthUserGuard } from 'src/auth/guards/auth-user.guard';
-import { User } from 'src/decorators/user.decorator';
-import { controllerTryCatchWrapper } from 'src/lib/controller-try-catch-wrapper';
+import { User } from '../decorators/user.decorator';
 
 @Controller('user')
 export class UserController {
