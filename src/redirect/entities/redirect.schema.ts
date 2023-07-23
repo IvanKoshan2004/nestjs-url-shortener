@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { ShortUrl } from 'src/shortener/entities/shorturl.schema';
+import { ShortUrl } from '../../shortener/entities/shorturl.schema';
+
 export type RedirectDocument = mongoose.HydratedDocument<Redirect>;
 
 @Schema()

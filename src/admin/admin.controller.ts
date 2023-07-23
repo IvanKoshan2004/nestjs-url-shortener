@@ -1,7 +1,7 @@
-import { Controller, Delete, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { AuthAdminGuard } from 'src/auth/guards/auth-admin.guard';
+import { UseGuards, Controller, Get, Param, Delete, Query } from '@nestjs/common';
+import { AuthAdminGuard } from '../auth/guards/auth-admin.guard';
+import { controllerTryCatchWrapper } from '../lib/controller-try-catch-wrapper';
 import { AdminService } from './admin.service';
-import { controllerTryCatchWrapper } from 'src/lib/controller-try-catch-wrapper';
 
 @UseGuards(AuthAdminGuard)
 @Controller('admin')

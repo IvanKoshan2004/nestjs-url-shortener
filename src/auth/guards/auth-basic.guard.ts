@@ -1,10 +1,11 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthService } from '../auth.service';
 import { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthBasicGuard implements CanActivate {
-    constructor(private readonly authService: AuthService) {}
+    constructor(private readonly authService: AuthService, private readonly configService: ConfigService) {}
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const req = context.switchToHttp().getRequest<Request>();
         const sessionCookie = this.extractSessionCookie(req);
@@ -36,7 +37,9 @@ export class AuthBasicGuard implements CanActivate {
             const cookieHeader = req.headers.cookie;
             if (cookieHeader) {
                 const cookies = cookieHeader.split(';');
-                const sessionCookie = cookies.find((cookie) => cookie.trim().startsWith('session='));
+                const sessionCookie = cookies.find((cookie) =>
+                    cookie.trim().startsWith(this.configService.get('SESSION_COOKIE_NAME') + '='),
+                );
                 if (sessionCookie) {
                     return sessionCookie.split('=')[1].trim();
                 }

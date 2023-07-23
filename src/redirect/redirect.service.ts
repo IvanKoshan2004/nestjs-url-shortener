@@ -1,26 +1,30 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Request, Response } from 'express';
-import { Model } from 'mongoose';
-import { Redirect, RedirectDocument } from './entities/redirect.schema';
-import { RedirectDto } from './dtos/redirect.dto';
-import { ShortUrl, ShortUrlDocument } from 'src/shortener/entities/shorturl.schema';
 import * as geoip from 'geoip-lite';
 import * as DeviceDetector from 'device-detector-js';
-import { parseReferrerDomain } from 'src/lib/parse-referrer-domain';
-import { ShortenerService } from 'src/shortener/shortener.service';
+import { ShortenerService } from '../shortener/shortener.service';
+import { Injectable, Inject, forwardRef, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { parseReferrerDomain } from '../lib/parse-referrer-domain';
+import { ShortUrlDocument } from '../shortener/entities/shorturl.schema';
+import { RedirectDto } from './dtos/redirect.dto';
+import { Redirect, RedirectDocument } from './entities/redirect.schema';
 
 @Injectable()
 export class RedirectService {
     constructor(
         @InjectModel('redirects') private redirectModel: Model<Redirect>,
+        @Inject(forwardRef(() => ShortenerService))
         private readonly shortenerService: ShortenerService,
     ) {}
     async redirectFrom(accessRoute: string, req: Request, res: Response): Promise<void> {
         const shortUrlDocument = await this.shortenerService.getShortUrlByAccessRoute(accessRoute);
+        if (!shortUrlDocument) {
+            throw new BadRequestException();
+        }
         const isExpired = this.isShortUrlExpired(shortUrlDocument);
         if (isExpired) {
-            throw Error('Shortened url has expired');
+            throw new BadRequestException();
         }
         res.redirect(shortUrlDocument.url);
         const redirectDto = this.generateRedirectDto(req, shortUrlDocument._id.toString());

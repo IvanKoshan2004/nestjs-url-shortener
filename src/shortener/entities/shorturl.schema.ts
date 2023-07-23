@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
-import { User } from 'src/user/entities/user.schema';
+import { User } from '../../user/entities/user.schema';
 
 export type ShortUrlDocument = mongoose.HydratedDocument<ShortUrl>;
 
