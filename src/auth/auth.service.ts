@@ -8,70 +8,50 @@ import { Response } from 'express';
 import { constants } from './auth.constants';
 import { UserService } from 'src/user/user.service';
 import { JwtSessionPayload } from './types/jwt-session-payload.type';
-import { Request } from 'express';
+import { JwtSessionToken } from './types/jwt-session-token.type';
 
 @Injectable()
 export class AuthService {
     private defaultHashMethod = 'sha256';
     constructor(private readonly jwtService: JwtService, private readonly userService: UserService) {}
-    async loginUser(loginUserDto: LoginUserDto, res: Response) {
-        try {
-            const user = await this.userService.getUserByUsername(loginUserDto.username);
-            console.log('Logging into user ', user.username);
-            console.log(user);
-            if (!user) {
-                res.json({ msg: "can't login" });
-                return;
-            }
-            const isAuthenticated = await this.verifyUserLogin(loginUserDto, user.login_data);
-            console.log('Is authenticated: ', isAuthenticated);
-            if (!isAuthenticated) {
-                res.json({ msg: "can't login" });
-                return;
-            }
-            user.session_id = this.generateSessionId();
-            user.markModified('session_id');
-            const jwtToken = await this.generateUserSessionJwt(user);
-            res.cookie('session', jwtToken, {
-                httpOnly: true,
-                maxAge: 172800,
-            });
-            res.json({ msg: 'sucessful login', jwt: jwtToken });
-            user.save();
-            return;
-        } catch (e) {
-            res.json({ msg: "can't login" });
-            return;
+
+    async loginUser(loginUserDto: LoginUserDto): Promise<JwtSessionToken> {
+        const user = await this.userService.getUserByUsername(loginUserDto.username);
+        console.log('Logging into user ', user.username);
+        console.log(user);
+        if (!user) {
+            throw Error("Can't login");
         }
-    }
-    async logoutUser(req: Request, res: Response) {
-        try {
-            const user = await this.userService.getUserById(req.user._id);
-            console.log(user);
-            if (!user) {
-                res.json({ msg: "can't logout" });
-                return;
-            }
-            user.session_id = '';
-            user.markModified('session_id');
-            res.cookie('session', '');
-            res.json({ msg: 'sucessful logout' });
-            user.save();
-            return;
-        } catch (e) {
-            res.json({ msg: "can't logout" });
-            return;
+        const isAuthenticated = await this.verifyUserLogin(loginUserDto, user.login_data);
+        console.log('Is authenticated: ', isAuthenticated);
+        if (!isAuthenticated) {
+            throw Error("Can't login");
         }
+        user.session_id = this.generateSessionId();
+        user.markModified('session_id');
+        user.save();
+        const jwtToken = await this.generateUserSessionJwt(user);
+        return jwtToken;
     }
-    async registerUser(createUserDto: CreateUserDto) {
+    async logoutUser(userId: string): Promise<true> {
+        const user = await this.userService.getUserById(userId);
+        if (!user) {
+            throw Error("Can't logout");
+        }
+        user.session_id = '';
+        user.markModified('session_id');
+        user.save();
+        return true;
+    }
+    async registerUser(createUserDto: CreateUserDto): Promise<UserDocument> {
         const newUser = await this.userService.createUser(createUserDto);
         if (!newUser) {
-            return { msg: `user with identical username or email exists` };
+            throw Error('User with the same username or email exists');
         }
         const newUserLogin = await this.generateUserLogin(createUserDto);
         newUser.login_data = newUserLogin;
         newUser.save();
-        return { msg: `created new user with id ${newUser._id}` };
+        return newUser;
     }
     private async generatePasswordHash(
         password: string,
@@ -79,9 +59,9 @@ export class AuthService {
         hashMethod: string,
         iterations = 1000,
     ): Promise<Buffer> {
-        const passwordBuffer = Buffer.from(password);
         return new Promise((resolve, reject) => {
             const hash_length = 32;
+            const passwordBuffer = Buffer.from(password);
             pbkdf2(passwordBuffer, salt, iterations, hash_length, hashMethod, (err, result) => {
                 if (err) {
                     reject('pbkdf2 error');
@@ -99,7 +79,7 @@ export class AuthService {
         newUserLogin.salt = salt;
         return newUserLogin;
     }
-    private async generateUserSessionJwt(user: UserDocument) {
+    private async generateUserSessionJwt(user: UserDocument): Promise<JwtSessionToken> {
         const currentTime = new Date().getTime();
         const payload: JwtSessionPayload = {
             session_id: user.session_id,
@@ -115,19 +95,12 @@ export class AuthService {
         return jwt;
     }
     private async verifyUserLogin(loginUserDto: LoginUserDto, userLogin: UserLogin) {
-        try {
-            console.log(userLogin.hash);
-            const hashDigest = await this.generatePasswordHash(
-                loginUserDto.password,
-                userLogin.salt.buffer as Buffer,
-                userLogin.hash_method,
-            );
-
-            return hashDigest.equals(userLogin.hash.buffer as Buffer);
-        } catch (e) {
-            console.log('error', e);
-            return false;
-        }
+        const hashDigest = await this.generatePasswordHash(
+            loginUserDto.password,
+            userLogin.salt.buffer as Buffer,
+            userLogin.hash_method,
+        );
+        return hashDigest.equals(userLogin.hash.buffer as Buffer);
     }
     async verifyUserSessionJwt(jwt: string) {
         const isJwtVerified = await this.jwtService.verifyAsync(jwt, {
@@ -138,10 +111,7 @@ export class AuthService {
         }
         const payload = this.decodeUserSessionJwt(jwt);
         const user = await this.userService.getUserById(payload._id);
-        if (!user) {
-            return false;
-        }
-        if (user.session_id != payload.session_id) {
+        if (!user || user.session_id != payload.session_id) {
             return false;
         }
         return true;

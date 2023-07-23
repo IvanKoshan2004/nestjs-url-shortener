@@ -1,0 +1,1 @@
+export type JwtSessionToken = string;
