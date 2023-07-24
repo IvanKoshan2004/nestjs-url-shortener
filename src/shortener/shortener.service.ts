@@ -1,40 +1,32 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { randomBytes } from 'crypto';
-import { Model, isObjectIdOrHexString } from 'mongoose';
 import { countViewsInTimeDivisions } from '../lib/count-views-in-time-divisions';
 import { incrementSetEntry } from '../lib/increment-set-entry';
 import { RedirectDocument } from '../redirect/entities/redirect.schema';
-import { RedirectService } from '../redirect/redirect.service';
-import { UserService } from '../user/user.service';
 import { ShortUrlEditDto } from './dtos/short-url-edit.dto';
 import { ShortenUrlDto } from './dtos/shorten-url.dto';
-import { ShortUrl, ShortUrlDocument } from './entities/shorturl.schema';
+import { ShortUrlDocument } from './entities/shorturl.schema';
 import { RedirectStatistics } from './types/redirect-statistics.type';
+import { UserDocumentService } from '../user-document/user-document.service';
+import { ShortUrlDocumentService } from '../short-url-document/short-url-document.service';
+import { RedirectDocumentService } from '../redirect-document/redirect-document.service';
 
 @Injectable()
 export class ShortenerService {
     constructor(
-        @InjectModel('shorturls') private shortUrlModel: Model<ShortUrl>,
-        private readonly userService: UserService,
-        private readonly redirectService: RedirectService,
+        private readonly shortUrlDocumentService: ShortUrlDocumentService,
+        private readonly userDocumentService: UserDocumentService,
+        private readonly redirectDocumentService: RedirectDocumentService,
     ) {}
 
-    async getShortUrlById(urlId: string): Promise<ShortUrlDocument> {
-        if (!isObjectIdOrHexString(urlId)) {
-            throw Error('Incorrect url id');
-        }
-        return await this.shortUrlModel.findById(urlId).exec();
+    getShortUrlById(urlId: string): Promise<ShortUrlDocument> {
+        return this.shortUrlDocumentService.findById(urlId);
     }
-    async getShortUrlByAccessRoute(accessRoute: string): Promise<ShortUrlDocument> {
-        return await this.shortUrlModel.findOne({ access_route: accessRoute }).exec();
-    }
-    async getShortUrls(offset: number, count: number): Promise<ShortUrlDocument[]> {
-        const shortUrlDocuments = await this.shortUrlModel.find().skip(offset).limit(count).exec();
-        return shortUrlDocuments;
+    getShortUrls(offset: number, count: number): Promise<ShortUrlDocument[]> {
+        return this.shortUrlDocumentService.findWithLimitAndSkip(count, offset);
     }
     async getShortUrlByIdIfCreatedByUser(urlId: string, creatorUserId: string): Promise<ShortUrlDocument> {
-        const shortUrlDocument = await this.getShortUrlById(urlId);
+        const shortUrlDocument = await this.shortUrlDocumentService.findById(urlId);
         if (shortUrlDocument.creator_id.toString() != creatorUserId) {
             throw Error('Unauthorized user');
         }
@@ -49,7 +41,7 @@ export class ShortenerService {
         urlId: string,
         options: { timeDivision: string; timeDivisionStart?: Date },
     ): Promise<RedirectStatistics> {
-        const shortUrl = await this.getShortUrlById(urlId);
+        const shortUrl = await this.shortUrlDocumentService.findById(urlId);
         const statistics = await this.getShortUrlStatistics(shortUrl, options);
         return statistics;
     }
@@ -58,7 +50,7 @@ export class ShortenerService {
         options: { timeDivision: string; timeDivisionStart?: Date },
     ): Promise<RedirectStatistics> {
         const urlId = shortUrl._id;
-        const redirectDocuments = await this.redirectService.getRedirectDocumentsByShortUrlId(urlId);
+        const redirectDocuments = await this.redirectDocumentService.find({ url_id: urlId });
         return this.generateStatisticsFromRedirects(redirectDocuments, {
             timeDivision: options.timeDivision,
             timeDivisionStart: options.timeDivisionStart ?? shortUrl.creation_date,
@@ -73,14 +65,14 @@ export class ShortenerService {
         return shortUrl;
     }
     async deleteShortUrlById(urlId: string) {
-        return this.shortUrlModel.findByIdAndDelete(urlId);
+        return this.shortUrlDocumentService.deleteById(urlId);
     }
     private async generateShortUrlDocument(
         shortenUrlDto: ShortenUrlDto,
         creatorUserId: string,
     ): Promise<ShortUrlDocument> {
-        const newShortUrl = new this.shortUrlModel(shortenUrlDto);
-        const createdBy = await this.userService.getUserById(creatorUserId);
+        const newShortUrl = await this.shortUrlDocumentService.create(shortenUrlDto);
+        const createdBy = await this.userDocumentService.findById(creatorUserId);
         const creationDate = new Date();
         const milisecondsInDay = 86400 * 1000;
         newShortUrl.creation_date = creationDate;

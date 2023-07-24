@@ -1,24 +1,22 @@
 import { Request, Response } from 'express';
 import * as geoip from 'geoip-lite';
 import * as DeviceDetector from 'device-detector-js';
-import { ShortenerService } from '../shortener/shortener.service';
-import { Injectable, Inject, forwardRef, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { parseReferrerDomain } from '../lib/parse-referrer-domain';
 import { ShortUrlDocument } from '../shortener/entities/shorturl.schema';
 import { RedirectDto } from './dtos/redirect.dto';
-import { Redirect, RedirectDocument } from './entities/redirect.schema';
+import { RedirectDocument } from './entities/redirect.schema';
+import { RedirectDocumentService } from '../redirect-document/redirect-document.service';
+import { ShortUrlDocumentService } from '../short-url-document/short-url-document.service';
 
 @Injectable()
 export class RedirectService {
     constructor(
-        @InjectModel('redirects') private redirectModel: Model<Redirect>,
-        @Inject(forwardRef(() => ShortenerService))
-        private readonly shortenerService: ShortenerService,
+        private readonly redirectDocumentService: RedirectDocumentService,
+        private readonly shortUrlDocumentService: ShortUrlDocumentService,
     ) {}
     async redirectFrom(accessRoute: string, req: Request, res: Response): Promise<void> {
-        const shortUrlDocument = await this.shortenerService.getShortUrlByAccessRoute(accessRoute);
+        const shortUrlDocument = await this.shortUrlDocumentService.findOne({ access_route: accessRoute });
         if (!shortUrlDocument) {
             throw new BadRequestException();
         }
@@ -30,13 +28,8 @@ export class RedirectService {
         const redirectDto = this.generateRedirectDto(req, shortUrlDocument._id.toString());
         await this.createRedirect(redirectDto);
     }
-    async getRedirectDocumentsByShortUrlId(urlId) {
-        return await this.redirectModel.find({ url_id: urlId }).exec();
-    }
-    async createRedirect(redirectDto: RedirectDto): Promise<RedirectDocument> {
-        const newRedirect = await this.redirectModel.create(redirectDto);
-        newRedirect.save();
-        return newRedirect;
+    createRedirect(redirectDto: RedirectDto): Promise<RedirectDocument> {
+        return this.redirectDocumentService.create(redirectDto);
     }
     private generateRedirectDto(req: Request, urlId: string): RedirectDto {
         const ip = req.ip;
